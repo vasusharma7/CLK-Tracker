@@ -11,7 +11,7 @@
 import React, {memo} from 'react';
 import {createMaterialBottomTabNavigator} from '@react-navigation/material-bottom-tabs';
 import {NavigationContainer} from '@react-navigation/native';
-
+import BackgroundJob from 'react-native-background-job';
 // const Tab = createMaterialBottomTabNavigator();
 
 import {
@@ -26,8 +26,24 @@ import {
   Alert,
   AsyncStorage,
 } from 'react-native';
+const backgroundJob = {
+  jobKey: 'myJob',
+  job: () => console.log('Running in background'),
+};
 
-import BackgroundTask from 'react-native-background-task';
+BackgroundJob.register(backgroundJob);
+
+var backgroundSchedule = {
+  jobKey: 'myJob',
+  period: 1000,
+  timeout: 5000,
+};
+
+//   console.log(`Callback: isIgnoring = ${isIgnoring}`),
+// )
+//   .then((isIgnoring) => console.log(`Promise: isIgnoring = ${isIgnoring}`))
+//   .catch((err) => console.err(err));
+
 import Geolocation from 'react-native-geolocation-service';
 import {BottomNavigation, Appbar} from 'react-native-paper';
 
@@ -74,11 +90,12 @@ class Home extends React.Component {
       if (this.state.homeLat !== null && this.state.homeLng !== null) {
         console.log('inside home');
         this.setState({home: true});
-        I1 = setInterval(this.getLocation, 1000);
-        I2 = setInterval(this.validate, 1000);
-        this.state.rkey === 0
-          ? this.setState({rkey: 1})
-          : this.setState({rkey: 0});
+        I1 = setInterval(this.getLocation, 5000);
+        I2 = setInterval(this.validate, 5000);
+        if (this.state.data.index === 0)
+          this.state.rkey === 0
+            ? this.setState({rkey: 1})
+            : this.setState({rkey: 0});
       } else {
         console.log('hello there', this.state.homeLat);
       }
@@ -199,18 +216,20 @@ class Home extends React.Component {
             this.setState({lkey: this.state.lkey === 0 ? 1 : 0});
             if (this.state.homeLat !== null && this.state.homeLng !== null) {
               this.setHome();
-              this.state.rkey === 0
-                ? this.setState({rkey: 1})
-                : this.setState({rkey: 0});
+              if (this.state.data.index === 0)
+                this.state.rkey === 0
+                  ? this.setState({rkey: 1})
+                  : this.setState({rkey: 0});
             } else {
-              I1 = setInterval(this.getLocation, 1000);
-              I2 = setInterval(this.validate, 1000);
+              I1 = setInterval(this.getLocation, 5000);
+              I2 = setInterval(this.validate, 5000);
             }
           } else {
             this.setState({lat: lat.toString(), lng: lng.toString()});
-            this.state.rkey === 0
-              ? this.setState({rkey: 1})
-              : this.setState({rkey: 0});
+            if (this.state.data.index === 0)
+              this.state.rkey === 0
+                ? this.setState({rkey: 1})
+                : this.setState({rkey: 0});
           }
           // console.log(this.state.initialPosition);
         },
@@ -228,10 +247,10 @@ class Home extends React.Component {
   }
   validate = () => {
     //home
-    console.log(this.state.homeLat);
-    console.log(this.state.homeLng);
-    console.log(this.state.lat);
-    console.log(this.state.lng);
+    // console.log(this.state.homeLat);
+    // console.log(this.state.homeLng);
+    // console.log(this.state.lat);
+    // console.log(this.state.lng);
     var lat1 = this.convertio(parseFloat(this.state.homeLat));
     var lon1 = this.convertio(parseFloat(this.state.homeLng));
     //present
@@ -250,7 +269,7 @@ class Home extends React.Component {
     var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
     var d = R * c;
-    if (d > 200 && this.state.visible) {
+    if (d > 400 && this.state.visible) {
       this.setState({visible: false});
       var button = [
         {
@@ -266,18 +285,25 @@ class Home extends React.Component {
   };
   setHome = () => {
     this.setState({home: true});
-    I1 = setInterval(this.getLocation, 1000);
-    I2 = setInterval(this.validate, 1000);
+    I1 = setInterval(this.getLocation, 5000);
+    I2 = setInterval(this.validate, 5000);
   };
   async componentDidMount() {
     // AsyncStorage.clear();
-    await PermissionsAndroid.request(
-      PermissionsAndroid.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
-      {
-        title: 'Allow App to Run  In Background',
-        message: 'Grant  Access to use the App',
-      },
-    );
+    // const granted = await PermissionsAndroid.request(
+    //   PermissionsAndroid.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+    //   {
+    //     title: 'Location Permission Required',
+    //     message: 'Grant  Access to use the App',
+    //   },
+    // );
+    // if (granted === PermissionsAndroid.RESULTS.GRANTED) {
+    //   console.log('granted');
+    // }
+    BackgroundJob.schedule(backgroundSchedule)
+      .then(() => console.log('Success'))
+      .catch((err) => console.err(err));
+
     this.getData();
     this.getLocation(true);
   }
