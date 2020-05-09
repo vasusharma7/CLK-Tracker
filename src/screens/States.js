@@ -5,52 +5,119 @@ import {
   View,
   TouchableOpacity,
   ScrollView,
-  Alert,
   Dimensions,
+  Alert,
   ImageBackground,
+  AsyncStorage,
 } from 'react-native';
 import image from '../assets/1.gif';
 import BottomSheet from './BottomSheet';
-import {Surface, Modal, Portal, Provider} from 'react-native-paper';
+import {Surface, FAB} from 'react-native-paper';
 const {width, height} = Dimensions.get('window');
 import RBSheet from 'react-native-raw-bottom-sheet';
 const axios = require('axios');
 export default function States() {
   const refRBSheet = useRef();
   const [index, setIndex] = useState(0);
-  var [sCases, setsCases] = useState({});
+  var [sCases, setsCases] = useState('');
   var [vkey, setVkey] = useState(0);
   var [dkey, setDkey] = useState(0);
   var [change, setChange] = useState(false);
+
+  var [buffer, setBuffer] = useState(false);
   var [data, setData] = useState([]);
   var [visible, setVisible] = useState(false);
   var [fetch, setFetch] = useState('');
+  const fetchDate = async () => {
+    var currentdate = new Date();
+    var datetime =
+      'Last Sync: ' +
+      currentdate.getDate() +
+      '/' +
+      (currentdate.getMonth() + 1) +
+      '/' +
+      currentdate.getFullYear() +
+      ' @ ' +
+      currentdate.getHours() +
+      ':' +
+      currentdate.getMinutes() +
+      ':' +
+      currentdate.getSeconds();
+    await AsyncStorage.setItem('ind_date', JSON.stringify(datetime));
+  };
 
-  var buffer = change;
+  const fetchData = async () => {
+    try {
+      await axios
+        .get('https://api.covid19india.org/state_district_wise.json')
+        .then(async (response) => {
+          fetchDate();
+          await AsyncStorage.getItem('state_dump').then(async (res) => {
+            if (res === JSON.stringify(response.data) && change === buffer) {
+              await AsyncStorage.getItem('state_data').then((res2) => {
+                if (res2 !== null) {
+                  setsCases(JSON.parse(res2));
+                }
+              });
+            } else {
+              if (change !== buffer) {
+                setBuffer(!buffer);
+              }
+              var dump = response.data;
+              await AsyncStorage.setItem('state_dump', JSON.stringify(dump));
+              var state_data = {},
+                act = 0,
+                conf = 0,
+                rec = 0,
+                deaths = 0,
+                k = 0;
+              Object.keys(dump).map((state) => {
+                act = conf = rec = deaths = 0;
+                Object.keys(dump[state].districtData).map((dist) => {
+                  conf += dump[state].districtData[dist].confirmed;
+                  rec += dump[state].districtData[dist].recovered;
+                  deaths += dump[state].districtData[dist].deceased;
+                  act += dump[state].districtData[dist].active;
+                });
+                state_data[k] = {
+                  name: state,
+                  confirmed: conf,
+                  active: act,
+                  recovered: rec,
+                  deaths: deaths,
+                };
+                k++;
+              });
+              setsCases(state_data);
+              vkey === 0 ? setVkey(1) : setVkey(0);
+              console.log(state_data);
+              await AsyncStorage.setItem(
+                'state_data',
+                JSON.stringify(state_data),
+              );
+            }
+          });
+        })
+        .catch(async (err) => {
+          Alert.alert(
+            'Sorry Recent Data Could Not Be Fetched',
+            'Try Again Later',
+          );
+          console.log('error', err);
+          AsyncStorage.getItem('state_dump').then((res) => {
+            if (res !== null) {
+              AsyncStorage.getItem('state_data').then((res2) => {
+                setsCases(JSON.parse(res2));
+              });
+            }
+          });
+        });
+    } catch {
+      Alert.alert('Sorry Recent Data Could Not Be Fetched', 'Try Again Later');
+    }
+  };
   useEffect(() => {
-    axios
-      .get(
-        'https://covid-19-india-data-by-zt.p.rapidapi.com/GetIndiaStateWiseData',
-        {
-          headers: {
-            'x-rapidapi-key':
-              '2d1c7465a6msh17f8a1f5b7a193fp190be2jsn0e669c6f9818',
-            'x-rapidapi-host': 'covid-19-india-data-by-zt.p.rapidapi.com',
-          },
-        },
-      )
-      .then((response) => {
-        // console.log(Object.keys(response.data));
-
-        setsCases(response.data.data);
-
-        if (sCases === {} || buffer !== change) {
-          vkey === 0 ? setVkey(1) : setVkey(0);
-        }
-      })
-      .catch((err) => {
-        console.log('error', err);
-      });
+    fetchData();
   }, [change]);
 
   return (
@@ -69,11 +136,6 @@ export default function States() {
             // console.log(sCases[key].Country);
             return (
               <React.Fragment key={key}>
-                {/* <TouchableOpacity
-                onPress={() => {
-                  change === true ? setChange(false) : setChange(true);
-                  buffer = change;
-                }}> */}
                 <TouchableOpacity
                   onPress={() => {
                     setFetch(sCases[key].name);
@@ -124,13 +186,19 @@ export default function States() {
             );
           })}
         </ScrollView>
+        <FAB
+          style={styles.fab}
+          small
+          icon="refresh"
+          onPress={() => setChange(!change)}
+        />
         <RBSheet
           animationType={'slide'}
           ref={refRBSheet}
           closeOnDragDown={true}
           closeOnPressMask={true}
           closeOnPressBack={true}
-          height={Math.floor((3 * height) / 4)}
+          height={Math.floor((3 * height) / 5)}
           customStyles={{
             wrapper: {
               backgroundColor: 'transparent',
@@ -150,6 +218,13 @@ export default function States() {
   );
 }
 var styles = {
+  fab: {
+    position: 'absolute',
+    margin: 16,
+    backgroundColor: 'white',
+    right: 0,
+    bottom: 0,
+  },
   surface: {
     margin: 7,
     padding: 8,

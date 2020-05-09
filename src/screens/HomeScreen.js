@@ -1,3 +1,4 @@
+/* eslint-disable react-native/no-inline-styles */
 import React, {useEffect, useState} from 'react';
 import {
   Text,
@@ -7,17 +8,13 @@ import {
   Alert,
   Dimensions,
   ImageBackground,
+  AsyncStorage,
+  Image,
 } from 'react-native';
-import {
-  LineChart,
-  BarChart,
-  PieChart,
-  ProgressChart,
-  ContributionGraph,
-  StackedBarChart,
-} from 'react-native-chart-kit';
+import {ProgressChart} from 'react-native-chart-kit';
 import image from '../assets/covid.png';
-import {Surface, Appbar} from 'react-native-paper';
+import loader from '../assets/loader.gif';
+import {Surface, Appbar, FAB, Headline} from 'react-native-paper';
 import {TabView, TabBar, SceneMap} from 'react-native-tab-view';
 const {width, height} = Dimensions.get('window');
 const colors = ['red', 'blue', 'green', 'orange'];
@@ -26,97 +23,159 @@ const initialLayout = {
   height: Dimensions.get('window').height,
   backgroundColor: 'black',
 };
-
 const axios = require('axios');
+
 export default function HomeScreen() {
+  const fetchDate = async () => {
+    var currentdate = new Date();
+    var datetime =
+      'Last Sync: ' +
+      currentdate.getDate() +
+      '/' +
+      (currentdate.getMonth() + 1) +
+      '/' +
+      currentdate.getFullYear() +
+      ' @ ' +
+      currentdate.getHours() +
+      ':' +
+      currentdate.getMinutes() +
+      ':' +
+      currentdate.getSeconds();
+    setDate(datetime);
+    await AsyncStorage.setItem('hs_date', JSON.stringify(datetime));
+  };
   const [routes] = React.useState([
     {key: 'summary', title: 'Summary'},
     {key: 'graph', title: 'Graph'},
   ]);
+  var [date, setDate] = useState('');
 
   const [index, setIndex] = useState(0);
+  var [loading, setLoading] = useState(true);
   var [gCases, setGCases] = useState({});
   var [vkey, setVkey] = useState(0);
   var [dkey, setDkey] = useState(0);
   var [change, setChange] = useState(false);
+  var [buffer, setbuffer] = useState(false);
+
   var [data, setData] = useState({
-    labels: ['1', '2', '3'], // optional
+    labels: ['1', '1', '1'],
     data: [0, 0, 0],
   });
-  var buffer = change;
-  useEffect(() => {
-    axios
-      .get('https://api.covid19api.com/summary')
-      .then((response) => {
-        // console.log(Object.keys(response.data));
+  const fetchData = async () => {
+    try {
+      await axios
+        .get('https://api.covid19api.com/summary')
+        .then(async (response) => {
+          fetchDate();
+          setLoading(true);
+          await AsyncStorage.getItem('summary_data').then(async (res) => {
+            if (
+              res === JSON.stringify(response.data.Global) &&
+              change === buffer
+            ) {
+              setGCases(JSON.parse(res));
+              await AsyncStorage.getItem('summary_graph').then((res2) => {
+                if (res != null) setData(JSON.parse(res2));
+              });
+              setLoading(false);
+            } else {
+              if (change !== buffer) {
+                setbuffer(!buffer);
+              }
+              console.log('SUMMARY DATA BEING FETHCED');
+              setGCases(response.data.Global);
+              await AsyncStorage.setItem(
+                'summary_data',
+                JSON.stringify(response.data.Global),
+              );
+              vkey === 0 ? setVkey(1) : setVkey(0);
+              var keys = ['Confirmed', 'Recovered', 'Deaths'];
+              var values = [];
+              var dump = response.data.Global;
+              keys.map((key) => {
+                values.push(dump['Total' + key]);
+              });
+              console.log('values', values);
+              var total = values.reduce(function (a, b) {
+                return a + b;
+              }, 0);
+              values = values.map((value) => {
+                return value / total;
+              });
+              setData({labels: keys, data: values});
+              await AsyncStorage.setItem(
+                'summary_graph',
+                JSON.stringify({
+                  labels: keys,
+                  data: values,
+                }),
+              );
 
-        setGCases(response.data.Global);
-        var keys = [];
-        var values = [];
-        var sum = data['data'].reduce((a, b) => a + b, 0);
-        if (sum === 0 || buffer !== change) {
-          console.log('hi');
-          Object.keys(gCases).map((key) => {
-            keys.push(key.toString());
-            values.push(gCases[key]);
+              console.log('data', data);
+              dkey === 0 ? setDkey(1) : setDkey(0);
+
+              console.log(Object.keys(gCases));
+              setLoading(false);
+            }
           });
-          console.log('values', values);
-          var total = values.reduce(function (a, b) {
-            return a + b;
-          }, 0);
-          values = values.map((value) => {
-            return value / total;
+        })
+        .catch(async (err) => {
+          console.log('error', err);
+          await AsyncStorage.getItem('summary_data').then(async (res) => {
+            if (res != null) {
+              setGCases(JSON.parse(res));
+              await AsyncStorage.getItem('summary_graph').then(async (res2) => {
+                if (res != null) {
+                  setData(JSON.parse(res2));
+                  await AsyncStorage.setItem('hs_date').then(async (res3) => {
+                    setDate(res3);
+                  });
+                }
+              });
+            }
           });
-          setData({labels: keys, data: values, color: ['red', 'blue']});
-          console.log('data', data);
-          dkey === 0 ? setDkey(1) : setDkey(0);
-        }
-        if (gCases === {} || buffer !== change) {
-          // setChange(false);
-          vkey === 0 ? setVkey(1) : setVkey(0);
-        }
-        console.log(Object.keys(gCases));
-      })
-      .catch((err) => {
-        console.log('error', err);
-      });
-  }, [vkey, dkey, change]);
+          setLoading(false);
+          Alert.alert(
+            'Sorry Recent Data Could Not Be Fetched',
+            'Try Again Later',
+          );
+        });
+    } catch {
+      setLoading(false);
+      Alert.alert('Sorry Recent Data Could Not Be Fetched', 'Try Again Later');
+    }
+  };
+  useEffect(() => {
+    fetchData();
+  }, [change]);
   const Summary = () => (
     <>
       <ImageBackground source={image} style={styles.image}>
         <ScrollView
           contentContainerStyle={{
-            // flex: 1,
+            flex: 1,
             maxHeight: height,
             alignItems: 'center',
             justifyContent: 'center',
             // backgroundColor: 'black',
             padding: 50,
-          }}
-          key={vkey}>
-          {Object.keys(gCases).map((key) => {
-            console.log(key);
-            return (
-              <>
-                {/* <TouchableOpacity
-                onPress={() => {
-                  change === true ? setChange(false) : setChange(true);
-                  buffer = change;
-                }}> */}
-                <Surface style={styles.surface} key={key}>
-                  <Text style={styles.text}>
-                    {key} - {gCases[key]}
-                  </Text>
-                </Surface>
-                {/* <Surface style={styles.surface}>
-                <Text key={key.toString() + '1'}>
-                  {key} - {gCases[key]}
-                </Text>
-              </Surface> */}
-                {/* </TouchableOpacity> */}
-              </>
-            );
-          })}
+          }}>
+          <Surface style={styles.surface} key={vkey + 1}>
+            <Text style={styles.text}>
+              Total Confirmed - {gCases['TotalConfirmed']}
+            </Text>
+          </Surface>
+          <Surface style={styles.surface} key={vkey + 2}>
+            <Text style={styles.text}>
+              Total Recovered - {gCases['TotalRecovered']}
+            </Text>
+          </Surface>
+          <Surface style={styles.surface} key={vkey + 3}>
+            <Text style={styles.text}>
+              Total Deaths - {gCases['TotalDeaths']}
+            </Text>
+          </Surface>
         </ScrollView>
       </ImageBackground>
     </>
@@ -134,6 +193,7 @@ export default function HomeScreen() {
   };
   const Graph = () => (
     <View
+      key={dkey}
       style={{
         backgroundColor: 'black',
         height: height,
@@ -141,24 +201,21 @@ export default function HomeScreen() {
         flex: 1,
         justifyContent: 'center',
         padding: 0,
+        margin: 0,
       }}>
+      <Headline style={{color: 'white'}}>COVID-19 Condition</Headline>
       <ProgressChart
-        renderVerticalLabels={{
-          data: [1, 5, 7],
-          width: Number,
-          // height of your chart
-          height: Number,
-          paddingTop: Number,
-          paddingRight: Number,
-        }}
         key={dkey}
         data={data}
-        width={width}
+        width={width + 10}
         height={250}
         strokeWidth={8}
-        radius={35}
+        radius={15}
         chartConfig={chartConfig}
         hideLegend={false}
+        style={{
+          transform: [{translateX: -width * 0.1}],
+        }}
       />
     </View>
   );
@@ -180,20 +237,48 @@ export default function HomeScreen() {
         dark
         statusBarHeight={5}
         style={{backgroundColor: '#222', textAlign: 'center'}}>
-        <Appbar.Content title="Summary" subtitle="In Text" />
+        <Appbar.Content title="Summary" subtitle={date} />
       </Appbar.Header>
-      <TabView
-        renderTabBar={renderTabBar}
-        navigationState={{index, routes}}
-        renderScene={renderScene}
-        onIndexChange={setIndex}
-        initialLayout={initialLayout}
-      />
+      {loading === true ? (
+        <Image
+          source={loader}
+          style={{
+            ...styles.image,
+            width: width,
+            height: height,
+          }}
+        />
+      ) : (
+        <TabView
+          renderTabBar={renderTabBar}
+          navigationState={{index, routes}}
+          renderScene={renderScene}
+          onIndexChange={setIndex}
+          initialLayout={initialLayout}
+        />
+      )}
+      {loading === true ? (
+        <></>
+      ) : (
+        <FAB
+          style={styles.fab}
+          small
+          icon="refresh"
+          onPress={() => setChange(!change)}
+        />
+      )}
     </>
   );
 }
 
 const styles = {
+  fab: {
+    position: 'absolute',
+    margin: 16,
+    backgroundColor: 'white',
+    right: 0,
+    bottom: 0,
+  },
   surface: {
     margin: 7,
     padding: 8,

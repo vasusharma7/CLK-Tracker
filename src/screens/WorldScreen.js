@@ -3,20 +3,14 @@ import React, {useEffect, useState} from 'react';
 import {
   Text,
   View,
-  TouchableOpacity,
   ScrollView,
   Alert,
   Dimensions,
   ImageBackground,
+  AsyncStorage,
+  Image,
 } from 'react-native';
-import {
-  LineChart,
-  BarChart,
-  PieChart,
-  ProgressChart,
-  ContributionGraph,
-  StackedBarChart,
-} from 'react-native-chart-kit';
+import {PieChart} from 'react-native-chart-kit';
 var colors = [
   '#CB3301',
   '#FF0066',
@@ -33,8 +27,9 @@ var colors = [
   '#03CDFF',
   '#FFFFFF',
 ];
-import image from '../assets/1.jpg';
-import {Surface, Appbar} from 'react-native-paper';
+import image from '../assets/back1.jpg';
+import loader from '../assets/loader.gif';
+import {Surface, Appbar, Headline, FAB} from 'react-native-paper';
 import {TabView, TabBar, SceneMap} from 'react-native-tab-view';
 const {width, height} = Dimensions.get('window');
 const initialLayout = {
@@ -44,6 +39,7 @@ const initialLayout = {
 };
 
 const axios = require('axios');
+var dump = 0;
 export default function WorldScreen() {
   const [routes] = React.useState([
     {key: 'summary', title: 'Summary'},
@@ -51,54 +47,174 @@ export default function WorldScreen() {
   ]);
 
   const [index, setIndex] = useState(0);
-  var [wCases, setwCases] = useState({});
+  var [loading, setLoading] = useState(true);
+  var [wCases, setwCases] = useState('');
+  var [data, setData] = useState([]);
   var [vkey, setVkey] = useState(0);
   var [dkey, setDkey] = useState(0);
   var [change, setChange] = useState(false);
-  var [data, setData] = useState([]);
-  var buffer = change;
-  useEffect(() => {
-    axios
-      .get('https://api.covid19api.com/summary')
-      .then((response) => {
-        // console.log(Object.keys(response.data));
 
-        setwCases(response.data.Countries);
+  var [buffer, setBuffer] = useState(false);
+  var [date, setDate] = useState('');
+  const fetchDate = async () => {
+    var currentdate = new Date();
+    var datetime =
+      'Last Sync: ' +
+      currentdate.getDate() +
+      '/' +
+      (currentdate.getMonth() + 1) +
+      '/' +
+      currentdate.getFullYear() +
+      ' @ ' +
+      currentdate.getHours() +
+      ':' +
+      currentdate.getMinutes() +
+      ':' +
+      currentdate.getSeconds();
+    setDate(datetime);
+    await AsyncStorage.setItem('ws_date', JSON.stringify(datetime));
+  };
+  const fetchData = async () => {
+    try {
+      await axios
+        .get('https://api.covid19api.com/summary')
+        .then(async (response) => {
+          fetchDate();
+          setLoading(true);
+          await AsyncStorage.getItem('countries_data').then(async (res) => {
+            if (
+              res === JSON.stringify(response.data.Countries) &&
+              buffer === change
+            ) {
+              console.log('I AM HERE');
+              setwCases(JSON.parse(res));
+              await AsyncStorage.getItem('countries_graph').then((res2) => {
+                if (res != null) {
+                  setData(JSON.parse(res2));
+                }
+              });
+              setLoading(false);
+            } else {
+              console.log('REFRESHING');
+              if (change !== buffer) {
+                setBuffer(!buffer);
+              }
+              console.log('FETCHING COUNRTY DATA');
+              setwCases(response.data.Countries);
+              // setLoading(false);
 
-        var pieData = [];
-        var values = [];
+              await AsyncStorage.setItem(
+                'countries_data',
+                JSON.stringify(response.data.Countries),
+              );
 
-        if (data.length === 0 || buffer !== change) {
-          var total = response.data.Global.TotalConfirmed;
+              vkey === 0 ? setVkey(1) : setVkey(0);
+              var total = response.data.Global.TotalConfirmed;
+              var pieData = [];
+              var dump = response.data.Countries;
+              var pallete = [
+                '#CB3301',
+                '#FF0066',
+                '#FF6666',
+                '#FEFF99',
+                '#FFFF67',
+                '#CCFF66',
+                '#99FE00',
+                '#EC8EED',
+                '#FF99CB',
+                '#FE349A',
+                '#CC99FE',
+                '#6599FF',
+                '#03CDFF',
+                '#FFFFFF',
+              ];
+              Object.keys(dump).map((key) => {
+                // console.log(key);
 
-          Object.keys(wCases).map((key) => {
-            var temp = {};
-            // var ind = '#' + Math.floor(Math.random() * 16777215).toString(16);
-            var ind = colors[Math.floor(Math.random() * colors.length)];
-            temp['color'] = ind;
-            temp['name'] = wCases[key]['Country'];
-            temp['cases'] = wCases[key]['TotalConfirmed'];
-            if (parseInt(temp['cases']) / total < 0.05) {
-              return;
+                var temp = {};
+                // var t = Math.floor(Math.random() * pallete.length);
+
+                temp['cases'] = dump[key]['TotalConfirmed'];
+                if (parseInt(temp['cases']) / total < 0.05) {
+                  return;
+                }
+                if (pallete.length === 0)
+                  pallete = [
+                    '#CB3301',
+                    '#FF0066',
+                    '#FF6666',
+                    '#FEFF99',
+                    '#FFFF67',
+                    '#CCFF66',
+                    '#99FE00',
+                    '#EC8EED',
+                    '#FF99CB',
+                    '#FE349A',
+                    '#CC99FE',
+                    '#6599FF',
+                    '#03CDFF',
+                    '#FFFFFF',
+                  ];
+                console.log(pallete);
+                // var ind = colors[Math.floor(Math.random() * colors.length)];
+                var t = Math.floor(Math.random() * pallete.length);
+                var ind = pallete[t];
+                console.log(ind);
+                pallete.splice(t, 1);
+                temp['color'] = ind;
+                temp['name'] = dump[key]['Country'];
+                if (temp['name'] === 'United States of America')
+                  temp['name'] = 'U.S.A.';
+                temp['legendFontColor'] = ind;
+                temp['legendFontSize'] = 11;
+                pieData.push(temp);
+              });
+
+              console.log(0.05, pieData);
+
+              setData(pieData);
+              await AsyncStorage.setItem(
+                'countries_graph',
+                JSON.stringify(pieData),
+              );
+              console.log('logged');
+              dkey === 0 ? setDkey(1) : setDkey(0);
+              setLoading(false);
             }
-            temp['legendFontColor'] = ind;
-            temp['legendFontSize'] = 10;
-            pieData.push(temp);
           });
+        })
+        .catch(async (err) => {
+          console.log('error', err);
+          await AsyncStorage.getItem('countries_data').then(async (res) => {
+            if (res != null) {
+              setwCases(JSON.parse(res));
+              await AsyncStorage.getItem('countries_graph').then(
+                async (res2) => {
+                  if (res != null) {
+                    setData(JSON.parse(res2));
+                    await AsyncStorage.setItem('ws_date').then(async (res3) => {
+                      setDate(res3);
+                    });
+                  }
+                },
+              );
+            }
+          });
+          setLoading(false);
+          Alert.alert(
+            'Sorry Recent Data Could Not Be Fetched',
+            'Try Again Later',
+          );
+        });
+    } catch {
+      setLoading(false);
+      Alert.alert('Sorry Recent Data Could Not Be Fetched', 'Try Again Later');
+    }
+  };
 
-          console.log(0.05, pieData);
-          setData(pieData);
-          dkey === 0 ? setDkey(1) : setDkey(0);
-        }
-        if (wCases === {} || buffer !== change) {
-          // setChange(false);
-          vkey === 0 ? setVkey(1) : setVkey(0);
-        }
-      })
-      .catch((err) => {
-        console.log('error', err);
-      });
-  }, [vkey, dkey, change]);
+  useEffect(() => {
+    fetchData();
+  }, [change]);
   const Summary = () => (
     <>
       <ImageBackground source={image} style={styles.image}>
@@ -115,11 +231,6 @@ export default function WorldScreen() {
             // console.log(wCases[key].Country);
             return (
               <React.Fragment key={key}>
-                {/* <TouchableOpacity
-                onPress={() => {
-                  change === true ? setChange(false) : setChange(true);
-                  buffer = change;
-                }}> */}
                 <Surface style={styles.surface}>
                   <View style={{flexDirection: 'row', padding: 1}}>
                     <View
@@ -156,8 +267,6 @@ export default function WorldScreen() {
                     </View>
                   </View>
                 </Surface>
-
-                {/* </TouchableOpacity> */}
               </React.Fragment>
             );
           })}
@@ -171,7 +280,7 @@ export default function WorldScreen() {
     backgroundGradientTo: 'black',
     backgroundGradientToOpacity: 0.5,
     color: (opacity = 1) => `rgba(26, 255, 146, ${opacity})`,
-    strokeWidth: 2, // optional, default 3
+    strokeWidth: 3, // optional, default 3
     barPercentage: 0.9,
     useShadowColorFromDataset: false, // optional
   };
@@ -185,17 +294,23 @@ export default function WorldScreen() {
         justifyContent: 'center',
         padding: 0,
       }}>
-      <PieChart
-        data={data}
-        width={width}
-        height={220}
-        chartConfig={chartConfig}
-        accessor="cases"
-        paddingLeft="0"
-        backgroundColor="transparent"
-        absolute
-        hasLegend
-      />
+      <>
+        <Headline style={{color: 'white'}}>
+          Countries with Maximum Cases
+        </Headline>
+        <PieChart
+          key={dkey}
+          data={data}
+          width={width}
+          height={220}
+          chartConfig={chartConfig}
+          accessor="cases"
+          paddingLeft="0"
+          backgroundColor="transparent"
+          absolute
+          hasLegend
+        />
+      </>
     </View>
   );
 
@@ -216,15 +331,37 @@ export default function WorldScreen() {
         dark
         statusBarHeight={5}
         style={{backgroundColor: '#222', textAlign: 'center'}}>
-        <Appbar.Content title="Country Wise Data" subtitle="In Text" />
+        <Appbar.Content title="Country Wise Data" subtitle={date} />
       </Appbar.Header>
-      <TabView
-        renderTabBar={renderTabBar}
-        navigationState={{index, routes}}
-        renderScene={renderScene}
-        onIndexChange={setIndex}
-        initialLayout={initialLayout}
-      />
+
+      {loading === true ? (
+        <Image
+          source={loader}
+          style={{
+            ...styles.image,
+            width: width,
+            height: height,
+          }}
+        />
+      ) : (
+        <TabView
+          renderTabBar={renderTabBar}
+          navigationState={{index, routes}}
+          renderScene={renderScene}
+          onIndexChange={setIndex}
+          initialLayout={initialLayout}
+        />
+      )}
+      {loading === true ? (
+        <></>
+      ) : (
+        <FAB
+          style={styles.fab}
+          small
+          icon="refresh"
+          onPress={() => setChange(!change)}
+        />
+      )}
     </>
   );
 }
@@ -261,5 +398,12 @@ var styles = {
     color: 'black',
     fontSize: 12,
     fontWeight: 'bold',
+  },
+  fab: {
+    position: 'absolute',
+    margin: 16,
+    backgroundColor: 'white',
+    right: 0,
+    bottom: 0,
   },
 };

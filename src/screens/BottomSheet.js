@@ -1,32 +1,44 @@
 /* eslint-disable react-native/no-inline-styles */
 import React, {useState, useEffect} from 'react';
-import {ScrollView, View, Text, Dimensions} from 'react-native';
+import {ScrollView, View, Alert, Text, Dimensions} from 'react-native';
 const {height, width} = Dimensions.get('window');
 import {Surface, Headline} from 'react-native-paper';
 import axios from 'axios';
 export default function BottomSheet({state}) {
+  console.log('bottom');
   if (state.length === 0) return <></>;
   var [data, setData] = useState([]);
   var [target, setTarget] = useState('');
   var [key, setKey] = useState(0);
 
   useEffect(() => {
-    axios
-      .get('https://api.covid19india.org/state_district_wise.json')
-      .then((res) => {
-        var dump = res.data[state].districtData;
-        if (dump) {
-          setData(dump);
-          console.log(dump);
-        }
-      })
-      .catch((err) => console.log(err));
+    try {
+      axios
+        .get('https://api.covid19india.org/state_district_wise.json')
+        .then((res) => {
+          var dump = res.data[state].districtData;
+          if (dump) {
+            setData(dump);
+            console.log(dump);
+          }
+        })
+        .catch((err) => {
+          console.log(err);
+          Alert.alert(
+            'Sorry Recent Data Could Not Be Fetched',
+            'Try Again Later',
+          );
+        });
+    } catch {
+      setLoading(false);
+      Alert.alert('Sorry Recent Data Could Not Be Fetched', 'Try Again Later');
+    }
     if (target.localeCompare(state) !== 0) {
       setTarget(state);
       key === 0 ? setKey(1) : setKey(0);
       console.log('object');
     }
-  }, [key]);
+  }, []);
 
   return (
     <>

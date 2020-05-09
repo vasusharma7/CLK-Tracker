@@ -6,33 +6,12 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
+  Image,
   Dimensions,
   ImageBackground,
+  AsyncStorage,
 } from 'react-native';
-import {
-  LineChart,
-  BarChart,
-  PieChart,
-  ProgressChart,
-  ContributionGraph,
-  StackedBarChart,
-} from 'react-native-chart-kit';
-var colors = [
-  '#CB3301',
-  '#FF0066',
-  '#FF6666',
-  '#FEFF99',
-  '#FFFF67',
-  '#CCFF66',
-  '#99FE00',
-  '#EC8EED',
-  '#FF99CB',
-  '#FE349A',
-  '#CC99FE',
-  '#6599FF',
-  '#03CDFF',
-  '#FFFFFF',
-];
+import {ContributionGraph} from 'react-native-chart-kit';
 var showData = {date: '', count: ''};
 var dateObj = new Date();
 var tempObj = new Date();
@@ -45,9 +24,10 @@ import {
   Snackbar,
   Headline,
   Paragraph,
+  FAB,
 } from 'react-native-paper';
+import loader from '../assets/loader.gif';
 import {TabView, TabBar, SceneMap} from 'react-native-tab-view';
-import {set} from 'react-native-reanimated';
 const {width, height} = Dimensions.get('window');
 
 const initialLayout = {
@@ -57,7 +37,26 @@ const initialLayout = {
 };
 
 const axios = require('axios');
+
 export default function India() {
+  const fetchDate = async () => {
+    var currentdate = new Date();
+    var datetime =
+      'Last Sync: ' +
+      currentdate.getDate() +
+      '/' +
+      (currentdate.getMonth() + 1) +
+      '/' +
+      currentdate.getFullYear() +
+      ' @ ' +
+      currentdate.getHours() +
+      ':' +
+      currentdate.getMinutes() +
+      ':' +
+      currentdate.getSeconds();
+    setDate(datetime);
+    await AsyncStorage.setItem('ind_date', JSON.stringify(datetime));
+  };
   const [routes] = React.useState([
     {key: 'summary', title: 'Summary'},
     {key: 'states', title: 'States'},
@@ -68,75 +67,82 @@ export default function India() {
   var [iCases, setiCases] = useState({});
   var [vkey, setVkey] = useState(0);
   var [dkey, setDkey] = useState(0);
-  var [change, setChange] = useState(false);
+
   var [data, setData] = useState([]);
-  var [linedata, setlineData] = useState({
-    labels: ['January', 'February', 'March', 'April', 'May', 'June'],
-    datasets: [
-      {
-        data: [20, 45, 28, 80, 99, 43],
-        color: (opacity = 1) => `rgba(134, 65, 244, ${opacity})`,
-        strokeWidth: 2,
-      },
-    ],
-  });
-  var [lkey, setLKey] = useState(0);
+  var [date, setDate] = useState('');
   var [latest, setLatest] = useState([]);
   var [visible, setVisible] = useState('Hide');
-
-  var buffer = change;
-  useEffect(() => {
-    axios
-      .get('https://api.covid19api.com/country/India')
-      .then((response) => {
-        // console.log(Object.keys(response.data));
-        // console.log(response.data.length);
-        if (response.data) {
-          setiCases(response.data);
-          if (iCases[iCases.length - 1] !== undefined)
-            setLatest(iCases[iCases.length - 1]);
-          // console.log('here', iCases[iCases.length - 1]);
-          var heatData = [];
-          var values = [];
-          var ldata = {};
-          ldata['labels'] = [];
-          ldata['datasets'] = [];
-          var tempA = {};
-          tempA['data'] = [];
-          Object.keys(iCases).map((key) => {
-            var temp = {};
-            var date = iCases[key].Date.toString();
-            temp['date'] = date.substring(0, date.length - 10);
-            ldata['labels'].push(date.substring(0, date.length - 10));
-            tempA['data'].push(iCases[key].Confirmed);
-            temp['count'] = iCases[key].Confirmed;
-            heatData.push(temp);
+  var [loading, setLoading] = useState(true);
+  const fetchData = async () => {
+    try {
+      await axios
+        .get('https://api.covid19api.com/country/India')
+        .then((response) => {
+          setLoading(true);
+          fetchDate();
+          AsyncStorage.getItem('India_data').then((res) => {
+            if (res === JSON.stringify(response.data)) {
+              res = JSON.parse(res);
+              setiCases(res);
+              setLatest(res[res.length - 1]);
+              AsyncStorage.getItem('India_graph').then((res2) => {
+                if (res != null) {
+                  setData(JSON.parse(res2));
+                }
+              });
+              setLoading(false);
+            } else {
+              setiCases(response.data);
+              var dump = response.data;
+              AsyncStorage.setItem('India_data', JSON.stringify(response.data));
+              setLatest(dump[dump.length - 1]);
+              vkey === 0 ? setVkey(1) : setVkey(0);
+              var heatData = [];
+              Object.keys(dump).map((key) => {
+                var temp = {};
+                var date = dump[key].Date.toString();
+                temp['date'] = date.substring(0, date.length - 10);
+                temp['count'] = dump[key].Confirmed;
+                heatData.push(temp);
+              });
+              setData(heatData);
+              dkey === 0 ? setDkey(1) : setDkey(0);
+              AsyncStorage.setItem('India_graph', JSON.stringify(heatData));
+              setLoading(false);
+            }
           });
-          setData(heatData);
-          ldata['datasets'].push(tempA);
-          ldata['datasets'][0] = {
-            ...ldata['datasets'][0],
-            color: (opacity = 1) => `rgba(134, 65, 244, ${opacity})`,
-          };
-          console.log(ldata);
-          setlineData(ldata);
-
-          if (data.length === 0 || buffer !== change) {
-            dkey === 0 ? setDkey(1) : setDkey(0);
-            lkey === 0 ? setLKey(1) : setLKey(0);
-          }
-          if (
-            JSON.stringify(iCases) === JSON.stringify({}) ||
-            buffer !== change
-          ) {
-            vkey === 0 ? setVkey(1) : setVkey(0);
-          }
-        }
-      })
-      .catch((err) => {
-        console.log('error', err);
-      });
-  }, [dkey, vkey, change]);
+        })
+        .catch(async (err) => {
+          console.log('error', err);
+          Alert.alert(
+            'Sorry Recent Data Could Not Be Fetched',
+            'Try Again Later',
+          );
+          await AsyncStorage.getItem('India_data').then(async (res) => {
+            if (res != null) {
+              res = JSON.parse(res);
+              setiCases(res);
+              setLatest(res[res.length - 1]);
+              await AsyncStorage.getItem('India_graph').then(async (res2) => {
+                if (res != null) {
+                  setData(JSON.parse(res2));
+                  await AsyncStorage.setItem('ind_date').then(async (res3) => {
+                    setDate(res3);
+                  });
+                }
+              });
+            }
+          });
+          setLoading(false);
+        });
+    } catch {
+      setLoading(false);
+      Alert.alert('Sorry Recent Data Could Not Be Fetched', 'Try Again Later');
+    }
+  };
+  useEffect(() => {
+    fetchData();
+  }, []);
 
   const chartConfig = {
     backgroundGradientFrom: 'black',
@@ -149,55 +155,13 @@ export default function India() {
     useShadowColorFromDataset: false, // optional
   };
 
-  const Graph = () => (
-    <View
-      style={{
-        backgroundColor: 'black',
-        // height: height,
-        alignItems: 'center',
-        flex: 1,
-        justifyContent: 'center',
-        padding: 0,
-      }}>
-      <ContributionGraph
-        values={data}
-        endDate={tempObj.setDate(dateObj.getDate() - 1)}
-        numDays={105}
-        width={width}
-        height={220}
-        gutterSize={2}
-        chartConfig={chartConfig}
-        showMonthLabels
-        onDayPress={(e) => {
-          // console.log(e.date);
-          var bool = 0;
-          data.forEach((ent) => {
-            if (ent.date === e.date) bool = 1;
-          });
-          if (!bool) {
-            showData.date = 'Pre-Covid';
-            showData.count = 0;
-          } else {
-            showData = e;
-          }
-          setVisible('Show');
-        }}
-        style={{
-          margin: 10,
-          borderColor: 'rgba(26, 255, 146,0.3)',
-          borderWidth: 1,
-        }}
-      />
-    </View>
-  );
-
-  const Stats = () => {
-    return (
-      <>
-        <Line />
-      </>
-    );
-  };
+  // const Stats = () => {
+  //   return (
+  //     <>
+  //       <Line />
+  //     </>
+  //   );
+  // };
   const Summary = () => (
     <>
       <ImageBackground style={styles.image}>
@@ -209,54 +173,94 @@ export default function India() {
             // backgroundColor: 'black',
             padding: 50,
           }}>
-          {latest.length === 0 ? (
+          {/* {latest.length === 0 ? (
             <></>
-          ) : (
-            <>
-              <Surface style={styles.surface} key={vkey}>
-                <View style={{flexDirection: 'row', padding: 1}}>
-                  <View
+          ) : ( */}
+          <>
+            <Surface style={styles.surface} key={vkey}>
+              <View style={{flexDirection: 'row', padding: 1}}>
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    padding: 1,
+                    marginRight: 10,
+                    marginLeft: 0,
+                    alignContent: 'center',
+                    justifyContent: 'center',
+                    flex: 1,
+                    alignSelf: 'center',
+                  }}>
+                  <Text
                     style={{
-                      flexDirection: 'row',
-                      padding: 1,
-                      marginRight: 10,
-                      marginLeft: 0,
-                      alignContent: 'center',
-                      justifyContent: 'center',
-                      flex: 1,
-                      alignSelf: 'center',
+                      ...styles.text,
+                      fontSize: 18,
+                      textAlign: 'center',
+                      color: 'white',
                     }}>
-                    <Text
-                      style={{
-                        ...styles.text,
-                        fontSize: 18,
-                        textAlign: 'center',
-                        color: 'white',
-                      }}>
-                      India
-                    </Text>
-                  </View>
-                  <View style={{flexDirection: 'column', flex: 1}}>
-                    <Text style={{...styles.text, color: 'white'}}>
-                      Total Confirmed - {latest.Confirmed}
-                    </Text>
-                    <Text style={{...styles.text, color: '#00dd00'}}>
-                      Total Recovered - {latest.Recovered}
-                    </Text>
-                    <Text style={{...styles.text, color: '#d00'}}>
-                      Total Deaths - {latest.Deaths}
-                    </Text>
-                  </View>
+                    India
+                  </Text>
                 </View>
-              </Surface>
-              <Headline style={{color: 'white', margin: 10}}>Heat Map</Headline>
+                <View style={{flexDirection: 'column', flex: 1}}>
+                  <Text style={{...styles.text, color: 'white'}}>
+                    Total Confirmed - {latest.Confirmed}
+                  </Text>
+                  <Text style={{...styles.text, color: '#00dd00'}}>
+                    Total Recovered - {latest.Recovered}
+                  </Text>
+                  <Text style={{...styles.text, color: '#d00'}}>
+                    Total Deaths - {latest.Deaths}
+                  </Text>
+                </View>
+              </View>
+            </Surface>
+            <Headline style={{color: 'white', margin: 10}}>Heat Map</Headline>
 
-              {Graph()}
-              <Paragraph style={{color: 'white', marginTop: 10}}>
-                Touch to view Status
-              </Paragraph>
-            </>
-          )}
+            <View
+              key={dkey}
+              style={{
+                backgroundColor: 'black',
+                // height: height,
+                alignItems: 'center',
+                flex: 1,
+                justifyContent: 'center',
+                padding: 0,
+              }}>
+              <ContributionGraph
+                key={dkey}
+                values={data}
+                // endDate={tempObj.setDate(dateObj.getDate() - 1)}
+                numDays={105}
+                width={width}
+                height={220}
+                gutterSize={2}
+                chartConfig={chartConfig}
+                showMonthLabels
+                onDayPress={(e) => {
+                  // console.log(e.date);
+                  var bool = 0;
+                  data.forEach((ent) => {
+                    if (ent.date === e.date) bool = 1;
+                  });
+                  if (!bool) {
+                    showData.date = 'Pre-Covid/Unvailable';
+                    showData.count = 0;
+                  } else {
+                    showData = e;
+                  }
+                  setVisible('Show');
+                }}
+                style={{
+                  margin: 10,
+                  borderColor: 'rgba(26, 255, 146,0.3)',
+                  borderWidth: 1,
+                }}
+              />
+            </View>
+            <Paragraph style={{color: 'white', marginTop: 10}}>
+              Touch to view Status
+            </Paragraph>
+          </>
+          {/* )} */}
         </ScrollView>
       </ImageBackground>
     </>
@@ -264,8 +268,8 @@ export default function India() {
 
   const renderScene = SceneMap({
     summary: Summary,
-    states: () => <States />,
-    graph: Stats,
+    states: States,
+    graph: Line,
   });
   const renderTabBar = (props) => (
     <TabBar
@@ -280,15 +284,26 @@ export default function India() {
         dark
         statusBarHeight={5}
         style={{backgroundColor: '#222', textAlign: 'center'}}>
-        <Appbar.Content title="India" subtitle="In Text" />
+        <Appbar.Content title="India" subtitle={date} />
       </Appbar.Header>
-      <TabView
-        renderTabBar={renderTabBar}
-        navigationState={{index, routes}}
-        renderScene={renderScene}
-        onIndexChange={setIndex}
-        initialLayout={initialLayout}
-      />
+      {loading === true ? (
+        <Image
+          source={loader}
+          style={{
+            ...styles.image,
+            width: width,
+            height: height,
+          }}
+        />
+      ) : (
+        <TabView
+          renderTabBar={renderTabBar}
+          navigationState={{index, routes}}
+          renderScene={renderScene}
+          onIndexChange={setIndex}
+          initialLayout={initialLayout}
+        />
+      )}
       {visible === 'Show' ? (
         <Snackbar
           style={{backgroundColor: 'rgba(26, 255, 146,0.3)'}}
@@ -344,5 +359,12 @@ var styles = {
     color: 'black',
     fontSize: 13,
     fontWeight: 'bold',
+  },
+  fab: {
+    position: 'absolute',
+    margin: 16,
+    backgroundColor: 'white',
+    right: 0,
+    bottom: 32,
   },
 };

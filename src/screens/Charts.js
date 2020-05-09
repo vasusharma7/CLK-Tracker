@@ -1,6 +1,13 @@
 /* eslint-disable react-native/no-inline-styles */
 import React, {useState, useEffect} from 'react';
-import {ScrollView, View, Text, Dimensions} from 'react-native';
+import {
+  ScrollView,
+  View,
+  Alert,
+  Text,
+  Dimensions,
+  AsyncStorage,
+} from 'react-native';
 const {height, width} = Dimensions.get('window');
 import {Surface, Headline} from 'react-native-paper';
 import {LineChart, BarChart} from 'react-native-chart-kit';
@@ -12,57 +19,77 @@ export default function Line() {
     labels: ['January', 'February', 'March', 'April', 'May', 'June'],
     datasets: [
       {
-        data: [20, 45, 28, 80, 99, 43],
+        data: [0, 0, 0, 0, 0, 0],
         color: (opacity = 1) => `rgba(134, 65, 244, ${opacity})`,
         strokeWidth: 2,
       },
     ],
-    legend: ['Rainy Days', 'Sunny Days', 'Snowy Days'],
   });
   var [key, setKey] = useState(0);
 
-  useEffect(() => {
-    axios
-      .get('https://api.covid19api.com/country/India')
-      .then((response) => {
-        if (response.data) {
-          var cases = response.data;
-
-          var ldata = {};
-          ldata['labels'] = [];
-          ldata['datasets'] = [];
-          var temp = {};
-          temp['data'] = [];
-          Object.keys(cases).map((key) => {
-            var date = cases[key].Date.toString();
-            if (cases[key].Confirmed < 2000) return;
-            temp['data'].push(cases[key].Confirmed);
-            ldata['labels'].push(date.substring(0, date.length - 10));
+  const fetchData = async () => {
+    // await AsyncStorage.removeItem('line_dump');
+    try {
+      await axios
+        .get('https://api.covid19api.com/country/India')
+        .then(async (response) => {
+          await AsyncStorage.getItem('line_dump').then(async (res) => {
+            if (res === JSON.stringify(response.data)) {
+              await AsyncStorage.getItem('line_data').then((res2) => {
+                if (res2 !== null) {
+                  setData(JSON.parse(res2));
+                }
+              });
+            } else {
+              var cases = response.data;
+              AsyncStorage.setItem('line_dump', JSON.stringify(response.data));
+              var ldata = {};
+              ldata['labels'] = [];
+              ldata['datasets'] = [];
+              var temp = {};
+              temp['data'] = [];
+              Object.keys(cases)
+                .slice(0)
+                .reverse()
+                .map((key) => {
+                  if (temp['data'].length > 40) return;
+                  var date = cases[key].Date.toString();
+                  temp['data'].push(cases[key].Confirmed);
+                  ldata['labels'].push(date.substring(0, date.length - 10));
+                });
+              temp['data'].reverse();
+              ldata['labels'].reverse();
+              ldata['datasets'].push(temp);
+              setData(ldata);
+              AsyncStorage.setItem('line_data', JSON.stringify(ldata));
+              key === 0 ? setKey(1) : setKey(0);
+            }
           });
-          ldata['datasets'].push(temp);
-          //   console.log(ldata);
-          setData(ldata);
-
-          if (
-            JSON.stringify(data) ===
-            JSON.stringify({
-              labels: ['January', 'February', 'March', 'April', 'May', 'June'],
-              datasets: [
-                {
-                  data: [20, 45, 28, 80, 99, 43],
-                  color: (opacity = 1) => `rgba(134, 65, 244, ${opacity})`, // optional
-                  strokeWidth: 2, // optional
-                },
-              ],
-              legend: ['Rainy Days', 'Sunny Days', 'Snowy Days'], // optional
-            })
-          ) {
-            key === 0 ? setKey(1) : setKey(0);
-          }
-        }
-      })
-      .catch((err) => console.log(err));
-  }, [key]);
+        })
+        .catch(async (err) => {
+          console.log('error', err);
+          Alert.alert(
+            'Sorry Recent Data Could Not Be Fetched',
+            'Try Again Later',
+          );
+          await AsyncStorage.getItem('line_dump').then(async (res) => {
+            if (res != null) {
+              await AsyncStorage.getItem('line_data').then(async (res2) => {
+                if (res != null) {
+                  setData(JSON.parse(res2));
+                }
+              });
+            }
+          });
+        });
+    } catch {
+      Alert.alert('Sorry Recent Data Could Not Be Fetched', 'Try Again Later');
+    }
+  };
+  useEffect(() => {
+    AsyncStorage.removeItem('line_dump');
+    fetchData();
+  }, []);
 
   const chartConfig = {
     color: (opacity = 1) => `rgba(26, 255, 146, ${opacity})`,
@@ -76,7 +103,7 @@ export default function Line() {
       <View
         style={{
           backgroundColor: 'black',
-
+          paddingRight: 5,
           //   alignItems: 'center',
           flex: 1,
           justifyContent: 'center',
@@ -98,7 +125,7 @@ export default function Line() {
           key={key}
           withVerticalLabels={true}
           data={data}
-          width={width * 2}
+          width={width * 3}
           height={400}
           chartConfig={chartConfig}
           verticalLabelRotation={90}
