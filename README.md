@@ -17,6 +17,8 @@ In addition to that, the app also shows current Corona Virus Statistics such as 
 ## Libraries 
 
 1. React Native Location View - Modified the library for custom markers and callbacks.
+
+RN Location View Library taken from-
 [react-native location view](https://github.com/superapp/react-native-location-view/)
 
 2. React Native Push Notifications
