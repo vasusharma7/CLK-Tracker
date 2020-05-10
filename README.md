@@ -1,6 +1,6 @@
 # CLK - Tracker
 
-Covid 19 LockDown Tracker
+Covid 19 LockDown Tracker : 
 An android App built in React Native to track if you stay indoors and obey lock-down. It is based on location based alarm concept. The app will start beeping and will give you periodic notifications if you move at a certain distance away from your home.
 
 On first Install, set your home location and thereafter the app will track you.
