@@ -49,7 +49,7 @@ Customized React Native Location View is available in the node_modules folder.
 react-native run-android
 ```
 ## Screenshots
-![](https://github.com/vasusharma7/CLK-Tracker/blob/master/screenshots/7.jpg) ![](https://github.com/vasusharma7/CLK-Tracker/blob/master/screenshots/9.jpg) ![](https://github.com/vasusharma7/CLK-Tracker/blob/master/screenshots/10.jpg) ![](https://github.com/vasusharma7/CLK-Tracker/blob/master/screenshots/11.jpg)
+![](https://github.com/vasusharma7/CLK-Tracker/blob/master/screenshots/11.jpg) ![](https://github.com/vasusharma7/CLK-Tracker/blob/master/screenshots/9.jpg) ![](https://github.com/vasusharma7/CLK-Tracker/blob/master/screenshots/10.jpg) ![](https://github.com/vasusharma7/CLK-Tracker/blob/master/screenshots/7.jpg)
 
 ## Contributing
 Pull requests are welcome.
