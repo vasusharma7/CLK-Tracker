@@ -6,7 +6,7 @@ An android App built in React Native to track if you stay indoors and obey lock-
 On first Install, set your home location and thereafter the app will track you.
 The app is not a surveillance app. The location information is just on your phone and not sent to any server.
 
-In addition to that, the app also shows current Corona Virus Statistics such as summary, country wise data, data related to India, Indian states and Provinces. 
+In addition to that, the app also shows current Corona Virus Statistics such as Summary, Country wise data, Stats related to India, Indian states and Provinces along with Heat Maps and Graphs. 
 
 ## API Sources Used for Data
 ``` bash
