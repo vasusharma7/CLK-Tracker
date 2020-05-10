@@ -49,8 +49,7 @@ Customized React Native Location View is available in the node_modules folder.
 react-native run-android
 ```
 ## Screenshots
-![](https://github.com/vasusharma7/CLK-Tracker/blob/master/screenshots/1.jpg) ![](https://github.com/vasusharma7/CLK-Tracker/blob/master/screenshots/2.jpg) ![](https://github.com/vasusharma7/CLK-Tracker/blob/master/screenshots/3.jpg) ![](https://github.com/vasusharma7/CLK-Tracker/blob/master/screenshots/4.jpg) ![](https://github.com/vasusharma7/CLK-Tracker/blob/master/screenshots/5.jpg) ![](https://github.com/vasusharma7/CLK-Tracker/blob/master/screenshots/6.jpg) ![](https://github.com/vasusharma7/CLK-Tracker/blob/master/screenshots/7.jpg) ![](https://github.com/vasusharma7/CLK-Tracker/blob/master/screenshots/8.jpg) ![](https://github.com/vasusharma7/CLK-Tracker/blob/master/screenshots/9.jpg) ![](https://github.com/vasusharma7/CLK-Tracker/blob/master/screenshots/10.jpg) ![](https://github.com/vasusharma7/CLK-Tracker/blob/master/screenshots/11.jpg) 
-
+![](https://github.com/vasusharma7/CLK-Tracker/blob/master/screenshots/7.jpg) ![](https://github.com/vasusharma7/CLK-Tracker/blob/master/screenshots/9.jpg) ![](https://github.com/vasusharma7/CLK-Tracker/blob/master/screenshots/10.jpg) ![](https://github.com/vasusharma7/CLK-Tracker/blob/master/screenshots/11.jpg)
 
 ## Contributing
 Pull requests are welcome.
